@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes">
+  <title>paper-autocomplete demo</title>
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+  <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+  <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+  <link rel="import" href="../../iron-ajax/iron-ajax.html">
+  <link rel="import" href="../../paper-toast/paper-toast.html">
+  <link rel="import" href="../../paper-icon-button/paper-icon-button.html">
+  <link rel="import" href="../../iron-form/iron-form.html">
+  <link rel="import" href="../../elliptical-sass/elliptical-sass.html">
+  <link rel="import" href="../../css-docs/css-docs.html">
+  <link rel="import" href="../paper-autocomplete.html">
+
+  <link rel="import" href="account-autocomplete.html">
+
+  <link rel="stylesheet" href="demo.css">
+
+  <custom-style>
+    <style is="custom-style" include="demo-pages-shared-styles">
+      .vertical-section-container {
+        max-width: 800px;
+      }
+
+      paper-autocomplete#styled {
+        --paper-input-container-focus-color: var(--accent-color);
+        --paper-autocomplete-suggestions-item-min-height: 60px;
+        --paper-autocomplete-suggestions-wrapper: {
+          background-color: var(--paper-amber-50);
+        };
+      }
+    </style>
+  </custom-style>
+</head>
+
+<body unresolved>
+
+  <div class="vertical-section-container centered">
+    <h3>Local Data-Source Binding</h3>
+    <p>
+      Directly bind a local array to paper-autocomplete. The component internally will filter suggestions based on the
+      component attribute settings.
+    </p>
+
+    <blockquote class="info">
+      <span class="bold">LOCAL DATA BINDING</span><br>
+      <div>
+        The component internally remaps the passed array to the template binding array (which will be an array of
+        objects with a `text` and `value` properties). The passed array can be a simple array of strings.
+      </div>
+      <br>
+      <div>
+        Public properties, `textProperty` and `valueProperty`, can be declaratively set in the element attributes,
+        allowing to bind an arbitrary object array to the component's <span class="bold">source</span> property.
+      </div>
+    </blockquote>
+
+    <demo-snippet>
+      <template>
+        <paper-autocomplete class="autocomplete-states"
+                            label="Select State"
+                            id="input-local"
+                            no-label-float
+							min-length="3">
+        </paper-autocomplete>
+      </template>
+    </demo-snippet>
+
+  </div>
+
+  <paper-toast></paper-toast>
+  
+ <iron-ajax        
+                   params="{}"
+                   handle-as="json"
+				   id="sometestajax"
+                   debounce-duration="300" id="airlinesAjax">
+				   </iron-ajax>
+
+  <script>
+
+    window.addEventListener('WebComponentsReady', function () {
+		debugger;
+		
+		var allAutoCompleteStates = document.querySelectorAll('paper-autocomplete.autocomplete-states');
+			
+		allAutoCompleteStates.forEach(function (element) {
+			var selectedOption = [{'text':'asdfdf','value':'dfdf'}];
+			element.source = selectedOption;
+			element.shadowRoot.querySelector('#paperAutocompleteSuggestions')._suggestions = [];
+			element.shadowRoot.querySelector('#paperAutocompleteSuggestions')._suggestions = selectedOption;
+			element.shadowRoot.querySelector('#paperAutocompleteSuggestions')._selection(0);
+			element.shadowRoot.querySelector('#paperAutocompleteSuggestions').showResultsOnFocus = true;
+		});
+			
+		var sometest = document.querySelector('#sometestajax');
+		sometest.addEventListener('response',function(event){
+			var states = [];
+			if(event.detail.response){
+				event.detail.response.forEach(function(item){
+				
+					states.push
+					(
+						{
+							'text':item.CityName,
+							'value': item.Code
+						}
+					);
+				});
+			}
+			
+			var allAutoCompleteStates = document.querySelectorAll('paper-autocomplete.autocomplete-states');
+			
+			allAutoCompleteStates.forEach(function (element) {
+				element.source = states;
+				element.shadowRoot.querySelector('#paperAutocompleteSuggestions')._suggestions = [];
+				element.shadowRoot.querySelector('#paperAutocompleteSuggestions')._suggestions = states;
+			});
+		});
+			
+			//console.log(states);
+			
+		var allAutoCompleteStates = document.querySelectorAll('paper-autocomplete.autocomplete-states');
+		allAutoCompleteStates.forEach(function (element) {
+			   element.addEventListener('keyup', function (event) {
+			   debugger;
+					var jhbab = event.target.shadowRoot.querySelector('#autocompleteInput').value;
+					
+					if(jhbab && jhbab.length >= 3){
+						sometest.url="https://book.tlgpinsight.com/api/Content/Search?q=" + jhbab;
+						sometest.generateRequest();
+					}
+					
+			  });
+
+			  element.addEventListener('autocomplete-selected', function (event) {
+				var paperToast = document.querySelector('paper-toast');
+				var selected = event.detail.text;
+				paperToast.text = 'Selected: ' + selected;
+				paperToast.show();
+			  });
+				
+		});
+		
+		
+    });
+  </script>
