@@ -1,0 +1,235 @@
+<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../paper-autocomplete/paper-autocomplete.html"/>
+<link rel="import" href="../paper-autocomplete/paper-autocomplete-suggestions.html" />
+<link rel="import" href="../paper-icon-button/paper-icon-button.html" />
+<link rel="import" href="../iron-ajax/iron-ajax.html" />
+<link rel="import" href="../paper-spinner/paper-spinner.html" />
+<link rel="import" href="../paper-spinner/paper-spinner-lite.html" />
+<link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html" />
+
+<dom-module id="tlg-paper-autosuggest">
+
+  <template>
+
+    <style>
+      /* shadow DOM styles go here */
+      :host {
+        display: inline-block;
+      }
+
+        [hidden] {
+            display: none !important;
+        }
+	  
+	   .field-wrap {
+			position: relative;
+			margin-bottom: 20px;
+			font-weight: 400;
+		}
+
+        iron-icon {
+            cursor: pointer;
+        }
+    </style>
+
+     <paper-autocomplete on-keyup="__debounceAutocomplete" class="autocomplete"
+							id="input-local"
+							text="{{inputText}}"
+							value="{{inputValue}}"
+							label="[[label]]"
+							always-float-label="[[alwaysFloatLabel]]"
+							required="true"
+							on-autocomplete-selected="_selectedValue"
+							disable-show-clear="true"
+							>
+							
+		<iron-icon slot="suffix" icon="icons:clear" hidden$="[[!enableClear]]" on-click="_clearData"></iron-icon>
+		</paper-autocomplete>
+			
+		 <paper-spinner-lite id="spinner" class="absolute-center-spinner spinner-large"></paper-spinner-lite>
+		
+			<iron-ajax id="getList" url="[[searchURL]]" handle-as="json" method="[[method]]"
+					   on-response="__handleResponse" on-error="__handleError">
+			</iron-ajax>
+  </template>
+
+  <script>
+    class TlgPaperAutosuggest extends Polymer.Element {
+      static get is() {
+        return 'tlg-paper-autosuggest';
+      }
+	  
+      constructor() {
+        super();
+      }
+	  
+	 static get properties() {
+         return {
+                alwaysFloatLabel: { //show label floating
+                     type: Boolean,
+                     value: false
+                },
+                label: String, //label for autosuggest
+				searchURL: String, // URL that is used for ajax call and constructed based on apiURL, queryString and inputText
+				apiUrl: String,   // base api URL without query string 
+				queryString: String, // query string for ajax call
+                inputText: {
+                    type: String,
+                    notify: true
+                }, // text property to show selected data
+                 inputValue: {
+                     type: String,
+                     notify: true
+                 }, // value property to use selected data
+				enableClear: {      // boolean for when to show clear icon
+					type: Boolean,
+                    value: false
+				},
+				method: {             // method used  - currently supports get and post 
+					type: String,
+					value: 'GET'
+				},
+				useGet: {             // do we want to use get or post
+					type: Boolean,
+					computed: '__computedMethodType(method)'
+                 },
+                 interval: {   //property which specifies set timeout interval for ajax calls
+                     type: Number,
+                     value:0
+                 },
+                 parsingArray: { //custom parsing done in parent components as per response
+                     type: Array,
+                     value: [],
+                     observer: '__observeAutosuggestArray'
+                 },
+                 minimumLength: { //minimum characters when autosuggest should fire
+                     type: Number,
+                     value:3
+                 },
+                 waitTime: {       // Wait time for ajax call
+                     type: Number,
+                     value: 250
+                 }
+			}
+        }
+		
+		/////////////////////////////////////////////////////
+		//compute whether get or post method needs to be used
+		//////////////////////////////////////////////////////
+		__computedMethodType(method){
+			return method.toLowerCase() === 'get';
+		}
+
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+		// populate autocomplete when user types minimum letters specified and interval between calls is null
+		/////////////////////////////////////////////////////////////////////////////////////////////////////
+        __debounceAutocomplete() {
+            if (this.inputText && this.inputText.length >= this.minimumLength && !this.interval) {
+                clearTimeout(this.interval);
+                this.interval = setTimeout(() => {
+                    this.interval = null;
+                    if (this.useGet) {
+                        this.searchURL = this.apiUrl + this.queryString + this.inputText;
+                        this.$.spinner.active = true;
+                        this.shadowRoot.querySelector('#getList').generateRequest();
+                    }
+                    else {
+                        //TODO: Write code for POST method
+                    }
+                },this.waitTime);
+            }
+        }
+
+		//////////////////////////////////////////////////////////////////////////
+		// this event is hit when user selects any value from autocomplete results
+		//////////////////////////////////////////////////////////////////////////
+        _selectedValue(event) {
+			this.set('enableClear', true);
+			this.inputText = event.detail.text;
+			this.inputValue = event.detail.value;
+			this.validate();
+		}
+		
+		//////////////////////////////////////////////////////////////////////////
+		// this event is hit when user clicks cross icon aside autosuggest box
+		//////////////////////////////////////////////////////////////////////////
+		_clearData(){
+			this.set('inputText', '');
+			this.set('inputValue', '');
+			this.set('enableClear', false);
+		}
+
+
+		///////////////////////////////////////////////////
+		// this event is hit when ajax call is successfull
+		///////////////////////////////////////////////////
+		__handleResponse(event) {
+			if (!event || !event.detail || !event.detail.response ||
+				!event.detail.response) {
+				this.__handleError();
+				return;
+			}
+            if (event.detail.response && event.detail.response.length) {
+                this.dispatchEvent(new CustomEvent('autosuggest-response', event));
+			}
+        }
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////
+		// observes an array which is parsed in key value pair as required by paper-autocomplete
+		///////////////////////////////////////////////////////////////////////////////////////
+        __observeAutosuggestArray() {
+            if (!this.parsingArray || !this.parsingArray.length) {
+                return;
+            }
+            this.$.spinner.active = false;
+            this._setAutosuggestSuggestions(this.parsingArray);
+        }
+
+      
+	  
+		_setAutosuggestSuggestions(arr) {
+			let allAutoComplete = this.shadowRoot.querySelector('paper-autocomplete.autocomplete');
+			
+			allAutoComplete.source = arr;
+			allAutoComplete.shadowRoot.querySelector('#paperAutocompleteSuggestions')._suggestions = [];
+			allAutoComplete.shadowRoot.querySelector('#paperAutocompleteSuggestions')._suggestions = arr;
+			
+		}
+		
+		//////////////////////////////////////////
+		// this event is hit when ajax call fails
+		/////////////////////////////////////////
+		__handleError() {
+			this.$.spinner.active = false;
+		}
+		
+		///////////////////////////////////
+		// Validates data selected or not
+		//////////////////////////////////
+        validate() {
+            let isValid = true;
+			if (!this.inputText || !this.inputValue)
+			{   
+				this.inputText = '';
+				this.inputValue = '';
+                this.set('enableClear', false);
+                isValid = false;
+			} 
+			
+			let allAutoComplete = this.shadowRoot.querySelector('paper-autocomplete.autocomplete');
+            allAutoComplete.validate();
+
+            return isValid;
+			
+		}
+
+    }
+    customElements.define(TlgPaperAutosuggest.is, TlgPaperAutosuggest);
+  </script>
+
+</dom-module>
+
+

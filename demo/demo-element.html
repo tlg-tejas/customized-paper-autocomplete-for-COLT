@@ -1,0 +1,109 @@
+<link rel="import" href="../../polymer/polymer-element.html">
+<link rel="import" href="../../iron-icons/iron-icons.html">
+<link rel="import" href="../tlg-paper-autosuggest.html">
+
+
+<dom-module id="demo-element">
+  <template>
+    <style>
+      :host {
+        font-family: sans-serif;
+      
+      --iron-icon-fill-color: #d3d3d3;
+                --suggestions-item: {
+                    border: 1px solid lightgray;
+                    background-color: #f5f5f5;
+                    padding: 5px;
+                    color:var(--app-87-color);
+                    font-size: 14px;
+                    font-weight: 300;
+                    height:20px;
+                };
+                --paper-item: {
+                        max-height:20px;
+                    };
+      }
+    </style>
+  
+  <tlg-paper-autosuggest id="flightLocationFrom" data-tlg-test="tlg-flight-search:departure-airport-name"
+  query-string="?type=airport&q="
+  api-url="http://qa-book.tlgpinsight.com/api/Content/Search"
+  input-text="{{flightLocationFromText}}"
+  input-value="{{flightLocationFromValue}}"
+  always-float-label 
+  label="From" method="GET"
+  required
+  parsing-array="[[parsingArrayFrom]]"
+  on-autosuggest-response="__calculateKeyValueArray"
+  minimum-length="3"
+  wait-time="250">
+</tlg-paper-autosuggest>
+    
+   
+  </template>
+
+  <script>
+    class DemoElement extends Polymer.Element {
+      static get is() { return 'demo-element' }
+
+      static get properties(){
+        return {
+          parsingArrayFrom: Array,
+          flightLocationFromText: String,
+          flightLocationFromValue: String
+        }
+      }
+	  
+      __calculateKeyValueArray(event) {
+                if (!event || !event.detail || !event.detail.response)
+                    return;
+
+                let arr = event.detail.response.map(function (obj) {
+                    return {
+                        'text': this.getText(obj), //calculate text as what we show on UI
+                        'value': this.getValue(obj) // calculate value as resolved string
+                    }
+                }.bind(this));
+
+                if (event.currentTarget.id === 'flightLocationFrom') {
+                    this.set('parsingArrayFrom', []);
+                    this.set('parsingArrayFrom', arr);
+                } else {
+                    this.set('parsingArrayTo', []);
+                    this.set('parsingArrayTo', arr);
+                }
+            }
+
+            getText(response) {
+                if (response != null) {
+                    var tempValue = "";
+                    switch (response.SearchType) {
+                        case 'City':
+                        case 'Address':
+                            tempValue = response.CityName + " " + "(" + response.CountryName + ")";
+                            break;
+                        case 'Airport':
+                            tempValue = response.CityName + " " + "(" + response.CountryName + ")";
+                            break;
+                        case 'PointOfInterest':
+                            tempValue = response.CityName  + " " + "(" + response.CountryName + ")";
+                            break;
+                    }
+                }
+
+                return tempValue;
+            }
+
+            getValue(data) {
+                if (!data)
+                    return;
+
+                return (data.Id + " " + data.Name + " " + data.CityName)
+
+            }
+    }
+	
+
+    customElements.define(DemoElement.is, DemoElement);
+    </script>
+</dom-module>
